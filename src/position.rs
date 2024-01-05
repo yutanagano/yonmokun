@@ -184,15 +184,15 @@ impl Position {
         Evaluation::HeuristicScore(heuristic_score)
     }
 
-    pub fn play(&self, file: usize, rank: usize) -> Position {
-        if !self.can_play(file, rank) {
-            panic!("Cannot play {}, {}", file, rank)
+    pub fn play(&self, coordinate: Coordinates) -> Position {
+        if !self.can_play(coordinate) {
+            panic!("Cannot play {}, {}", coordinate.file, coordinate.rank)
         };
 
         let mut new_board = self.board.clone();
         for floor in 0..4 {
-            if new_board[floor][file][rank] == Slot::Empty {
-                new_board[floor][file][rank] = Slot::Occupied(self.active_player);
+            if new_board[floor][coordinate.file][coordinate.rank] == Slot::Empty {
+                new_board[floor][coordinate.file][coordinate.rank] = Slot::Occupied(self.active_player);
                 break;
             }
         }
@@ -205,8 +205,8 @@ impl Position {
         Position { board: new_board, active_player: new_active_player, current_move_number: self.current_move_number+1 }
     }
 
-    pub fn can_play(&self, file: usize, rank: usize) -> bool {
-        self.board[3][file][rank] == Slot::Empty
+    pub fn can_play(&self, coordinate: Coordinates) -> bool {
+        self.board[3][coordinate.file][coordinate.rank] == Slot::Empty
     }
 
     pub fn is_terminal(&self) -> bool {
@@ -250,6 +250,22 @@ pub enum Evaluation {
     Loss,
     Draw,
     HeuristicScore(i8)
+}
+
+impl Evaluation {
+    pub fn to_confidence(&self) -> f32 {
+        match self {
+            Evaluation::Win => 1.0,
+            Evaluation::Loss => 0.0,
+            Evaluation::Draw => 0.5,
+            Evaluation::HeuristicScore(s) => {
+                let exponent = *s as f32 / 5.0;
+                let base: f32 = 2.0;
+                let denominator = 1.0 + base.powf(-exponent);
+                1.0 / denominator
+            }
+        }
+    }
 }
 
 impl Neg for Evaluation {
@@ -341,5 +357,24 @@ impl AddAssign<Slot> for LineState {
             },
             _ => ()
         }
+    }
+}
+
+
+#[derive(Clone, Copy)]
+pub struct Coordinates {
+    pub file: usize,
+    pub rank: usize
+}
+
+impl Coordinates {
+    pub fn new(file: usize, rank: usize) -> Self {
+        Coordinates { file, rank }
+    }
+}
+
+impl fmt::Display for Coordinates {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "({}, {})", self.file+1, self.rank+1)
     }
 }

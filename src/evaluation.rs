@@ -1,31 +1,33 @@
-use crate::position::{Position, Evaluation};
+use crate::position::{Position, Evaluation, Coordinates};
 
 
-pub fn get_best_move(position: &Position, depth: u8) -> (usize, usize) {
+pub fn get_best_move(position: &Position, depth: u8) -> (Coordinates, Evaluation) {
     if position.is_terminal() {
         panic!("Cannot play on a terminal state.")
     };
 
     let mut best_eval_so_far = Evaluation::Loss;
-    let mut best_move_so_far = (0,0);
+    let mut best_move_so_far = None;
 
     for file in 0..4 {
         for rank in 0..4 {
-            if !position.can_play(file, rank) {
+            let coordinates = Coordinates::new(file, rank);
+
+            if !position.can_play(coordinates) {
                 continue
             };
 
-            let new_position = position.play(file, rank);
+            let new_position = position.play(coordinates);
             let evaluation = -get_negamax_evaluation(&new_position, depth, Evaluation::Loss, -best_eval_so_far);
 
             if evaluation > best_eval_so_far {
                 best_eval_so_far = evaluation;
-                best_move_so_far = (file, rank);
+                best_move_so_far = Some(coordinates);
             }
         }
     }
 
-    best_move_so_far
+    (best_move_so_far.unwrap(), best_eval_so_far)
 }
 
 
@@ -43,9 +45,11 @@ pub fn get_negamax_evaluation(position: &Position, depth: u8, mut alpha: Evaluat
 
             for file in 0..4 {
                 for rank in 0..4 {
-                    if !position.can_play(file, rank) {continue};
+                    let coordinates = Coordinates::new(file, rank);
 
-                    let new_position = position.play(file, rank);
+                    if !position.can_play(coordinates) {continue};
+
+                    let new_position = position.play(coordinates);
                     let evaluation = -get_negamax_evaluation(&new_position, depth-1, -beta, -alpha);
 
                     if evaluation >= beta {

@@ -2,7 +2,7 @@ mod position;
 mod evaluation;
 
 
-use position::Position;
+use position::{Position, Evaluation, Coordinates};
 use std::io::{self, Write};
 
 
@@ -12,26 +12,46 @@ fn main() {
     println!("やあ、僕の名はよんも君。一緒に三次元四目並べを遊ぼう！");
 
     let mut position = Position::new();
+    let mut coordinates: Coordinates;
+    let mut eval_score: Evaluation;
+    let last_move_by_player: bool;
 
     loop {
         position.print();
 
         println!("君の番だよ。");
 
-        let (file, rank) = get_user_coordinates(&position);
-        position = position.play(file, rank);
+        coordinates = get_user_coordinates(&position);
+        position = position.play(coordinates);
 
         if position.is_terminal() {
-            break
+            eval_score = position.get_static_evaluation();
+            last_move_by_player = true;
+            break;
         };
 
-        let (file, rank) = evaluation::get_best_move(&position, 6);
-        println!("僕はここに打とう: ({}, {})", file+1, rank+1);
-        position = position.play(file, rank);
+        (coordinates, eval_score) = evaluation::get_best_move(&position, 6);
+        println!("僕はここに打とう: {}", coordinates);
+        println!("自信係数: {:.0}%", eval_score.to_confidence() * 100.0);
+        position = position.play(coordinates);
 
         if position.is_terminal() {
-            break
+            eval_score = position.get_static_evaluation();
+            last_move_by_player = false;
+            break;
         };
+    }
+
+    match eval_score {
+        Evaluation::Loss => {
+            if last_move_by_player {
+                println!("負けました！楽しい対局をありがとう。");
+            } else {
+                println!("やった、僕の勝ち！楽しい対局をありがとう。");
+            }
+        },
+        Evaluation::Draw => println!("引き分けだね。楽しい対局をありがとう。"),
+        _ => panic!("Something went wrong.")
     }
 }
 
@@ -41,10 +61,11 @@ fn clear_screen() {
 }
 
 
-fn get_user_coordinates(position: &Position) -> (usize, usize) {
+fn get_user_coordinates(position: &Position) -> Coordinates {
     loop {
         let file: usize;
         let rank: usize;
+        let coordinates: Coordinates;
 
         loop {
             print!("縦列の番号は？[1-4]: ");
@@ -90,8 +111,10 @@ fn get_user_coordinates(position: &Position) -> (usize, usize) {
             break;
         }
 
-        if position.can_play(file, rank) {
-            return (file, rank)
+        coordinates = Coordinates::new(file, rank);
+
+        if position.can_play(coordinates) {
+            return coordinates
         } else {
             println!("そこには置けないな。どこに置きたい？");
             continue;
