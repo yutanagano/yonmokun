@@ -11,38 +11,42 @@ fn main() {
     println!("      ////^\\\\\\\\\n      | ^   ^ |\n     @ (o) (o) @\n      |   <   |\n      |  ___  |\n       \\_____/\n     ____|  |____\n    /    \\__/    \\\n   /              \\\n  /\\_/|        |\\_/\\   __   _____  _   _ __  __  ___  _  ___   _ _   _\n / /  |        |  \\ \\  \\ \\ / / _ \\| \\ | |  \\/  |/ _ \\| |/ / | | | \\ | |\n( <   |        |   > )  \\ V / | | |  \\| | |\\/| | | | | ' /| | | |  \\| |\n \\ \\  |        |  / /    | || |_| | |\\  | |  | | |_| | . \\| |_| | |\\  |\n  \\ \\ |________| / /     |_| \\___/|_| \\_|_|  |_|\\___/|_|\\_\\\\___/|_| \\_|\n");
     println!("やあ、僕の名はよんも君。一緒に三次元四目並べを遊ぼう！");
 
-    let mut position = Position::new();
-    let mut coordinates: Coordinates;
-    let mut eval_score: Evaluation;
+    let mut current_position = Position::new();
+
+    let final_evaluation: Evaluation;
     let last_move_by_player: bool;
 
+    current_position.print();
     loop {
-        position.print();
-
         println!("君の番だよ。");
 
-        coordinates = get_user_coordinates(&position);
-        position = position.play(coordinates);
+        let player_coordinates = get_user_coordinates(&current_position);
+        current_position = current_position.play(player_coordinates);
 
-        if position.is_terminal() {
-            eval_score = position.get_static_evaluation();
+        if current_position.is_terminal() {
+            final_evaluation = current_position.get_static_evaluation();
             last_move_by_player = true;
             break;
         };
 
-        (coordinates, eval_score) = evaluation::get_best_move(&position, 6);
-        println!("僕はここに打とう: {}", coordinates);
-        println!("自信係数: {:.0}%", eval_score.to_confidence() * 100.0);
-        position = position.play(coordinates);
+        let report = evaluation::analyse(&current_position, 6);
+        current_position = current_position.play(report.best_move);
 
-        if position.is_terminal() {
-            eval_score = position.get_static_evaluation();
+        clear_screen();
+        current_position.print();
+        println!("僕はここに打ったよ。{}", report.best_move);
+        println!("自信係数: {:.0}%", report.evaluation.to_confidence() * 100.0);
+        println!("computation time (ms):   {}", report.search_time.as_millis());
+        println!("num positions traversed: {}", report.num_positions_traversed);
+
+        if current_position.is_terminal() {
+            final_evaluation = current_position.get_static_evaluation();
             last_move_by_player = false;
             break;
         };
     }
 
-    match eval_score {
+    match final_evaluation {
         Evaluation::Loss => {
             if last_move_by_player {
                 println!("負けました！楽しい対局をありがとう。");

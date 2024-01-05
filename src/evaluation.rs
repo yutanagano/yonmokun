@@ -1,11 +1,15 @@
 use crate::position::{Position, Evaluation, Coordinates};
+use std::time::{Duration, Instant};
 
 
-pub fn get_best_move(position: &Position, depth: u8) -> (Coordinates, Evaluation) {
+pub fn analyse(position: &Position, depth: u8) -> AnalysisReport {
     if position.is_terminal() {
         panic!("Cannot play on a terminal state.")
     };
 
+    let start_time = Instant::now();
+
+    let mut num_positions_traversed_including_root = 1;
     let mut best_eval_so_far = Evaluation::Loss;
     let mut best_move_so_far = None;
 
@@ -18,7 +22,7 @@ pub fn get_best_move(position: &Position, depth: u8) -> (Coordinates, Evaluation
             };
 
             let new_position = position.play(coordinates);
-            let evaluation = -get_negamax_evaluation(&new_position, depth, Evaluation::Loss, -best_eval_so_far);
+            let evaluation = -get_negamax_evaluation(&new_position, depth, &mut num_positions_traversed_including_root, Evaluation::Loss, -best_eval_so_far);
 
             if evaluation > best_eval_so_far {
                 best_eval_so_far = evaluation;
@@ -27,11 +31,18 @@ pub fn get_best_move(position: &Position, depth: u8) -> (Coordinates, Evaluation
         }
     }
 
-    (best_move_so_far.unwrap(), best_eval_so_far)
+    AnalysisReport{
+        evaluation: best_eval_so_far,
+        best_move: best_move_so_far.unwrap(),
+        search_time: start_time.elapsed(),
+        num_positions_traversed: num_positions_traversed_including_root
+    }
 }
 
 
-pub fn get_negamax_evaluation(position: &Position, depth: u8, mut alpha: Evaluation, beta: Evaluation) -> Evaluation {
+fn get_negamax_evaluation(position: &Position, depth: u8, num_positions_traversed_so_far: &mut u32, mut alpha: Evaluation, beta: Evaluation) -> Evaluation {
+    *num_positions_traversed_so_far += 1;
+
     let static_evaluation = position.get_static_evaluation();
 
     match static_evaluation {
@@ -50,7 +61,7 @@ pub fn get_negamax_evaluation(position: &Position, depth: u8, mut alpha: Evaluat
                     if !position.can_play(coordinates) {continue};
 
                     let new_position = position.play(coordinates);
-                    let evaluation = -get_negamax_evaluation(&new_position, depth-1, -beta, -alpha);
+                    let evaluation = -get_negamax_evaluation(&new_position, depth-1, num_positions_traversed_so_far, -beta, -alpha);
 
                     if evaluation >= beta {
                         return evaluation
@@ -65,4 +76,12 @@ pub fn get_negamax_evaluation(position: &Position, depth: u8, mut alpha: Evaluat
             alpha
         }
     }
+}
+
+
+pub struct AnalysisReport {
+    pub evaluation: Evaluation,
+    pub best_move: Coordinates,
+    pub search_time: Duration,
+    pub num_positions_traversed: u32
 }
