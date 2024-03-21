@@ -6,15 +6,15 @@ use std::ops::{AddAssign, Neg};
 pub struct Position {
     pub active_player: Player,
     board: [[[Slot; 4]; 4]; 4],
-    current_move_number: u8
+    num_moves_played: u8
 }
 
 impl Position {
     pub fn new() -> Self {
         let board = [[[Slot::Empty; 4]; 4]; 4];
         let active_player = Player::White;
-        let current_move_number = 0;
-        Position{board, active_player, current_move_number}
+        let num_moves_played = 0;
+        Position{board, active_player, num_moves_played}
     }
 
     pub fn print(&self) {
@@ -28,26 +28,26 @@ impl Position {
     }
 
     pub fn get_static_evaluation(&self) -> Evaluation {
-        if self.current_move_number > 64 {
-            return Evaluation::Draw
-        };
-
         let mut heuristic_score = 0;
 
         match self.evaluate_straight_lines() {
             Evaluation::HeuristicScore(s) => heuristic_score += s,
-            _terminal_eval => return _terminal_eval
+            terminal_eval => return terminal_eval
         }
 
         match self.evaluate_first_degree_diagonals() {
             Evaluation::HeuristicScore(s) => heuristic_score += s,
-            _terminal_eval => return _terminal_eval
+            terminal_eval => return terminal_eval
         }
 
         match self.evaluate_second_degree_diagonals() {
             Evaluation::HeuristicScore(s) => heuristic_score += s,
-            _terminal_eval => return _terminal_eval
+            terminal_eval => return terminal_eval
         }
+
+        if self.num_moves_played == 64 {
+            return Evaluation::Draw
+        };
 
         Evaluation::HeuristicScore(heuristic_score)
     }
@@ -184,15 +184,15 @@ impl Position {
         Evaluation::HeuristicScore(heuristic_score)
     }
 
-    pub fn play(&self, coordinate: Coordinates) -> Position {
-        if !self.can_play(coordinate) {
-            panic!("Cannot play {}, {}", coordinate.file, coordinate.rank)
+    pub fn play(&self, coordinates: Coordinates) -> Position {
+        if !self.can_play(coordinates) {
+            panic!("Cannot play {}, {}", coordinates.file, coordinates.rank)
         };
 
         let mut new_board = self.board.clone();
         for floor in 0..4 {
-            if new_board[floor][coordinate.file][coordinate.rank] == Slot::Empty {
-                new_board[floor][coordinate.file][coordinate.rank] = Slot::Occupied(self.active_player);
+            if new_board[floor][coordinates.file][coordinates.rank] == Slot::Empty {
+                new_board[floor][coordinates.file][coordinates.rank] = Slot::Occupied(self.active_player);
                 break;
             }
         }
@@ -202,11 +202,11 @@ impl Position {
             Player::Black => Player::White
         };
 
-        Position { board: new_board, active_player: new_active_player, current_move_number: self.current_move_number+1 }
+        Position { board: new_board, active_player: new_active_player, num_moves_played: self.num_moves_played+1 }
     }
 
-    pub fn can_play(&self, coordinate: Coordinates) -> bool {
-        self.board[3][coordinate.file][coordinate.rank] == Slot::Empty
+    pub fn can_play(&self, coordinates: Coordinates) -> bool {
+        self.board[3][coordinates.file][coordinates.rank] == Slot::Empty
     }
 
     pub fn is_terminal(&self) -> bool {
@@ -214,6 +214,29 @@ impl Position {
             Evaluation::HeuristicScore(_) => false,
             _ => true
         }
+    }
+
+    pub fn generate_moves(&self) -> Vec<Coordinates> {
+        let mut playable_coords = Vec::new();
+
+        for file in 0..4 {
+            for rank in 0..4 {
+                let coords = Coordinates::new(file, rank);
+                if self.can_play(coords) {
+                    playable_coords.push(coords);
+                };
+            }
+        }
+
+        playable_coords.sort_by(
+            |a,b| -> Ordering {
+                let position_a = self.play(*a);
+                let position_b = self.play(*b);
+                position_a.get_static_evaluation().cmp(&position_b.get_static_evaluation())
+            }
+        );
+
+        playable_coords
     }
 }
 
@@ -355,7 +378,8 @@ impl AddAssign<Slot> for LineState {
                 },
                 false => *self = LineState::Plugged
             },
-            _ => ()
+            LineState::Plugged => return,
+            LineState::Completed => panic!("You can't add slots to a completed line.")
         }
     }
 }
@@ -376,5 +400,30 @@ impl Coordinates {
 impl fmt::Display for Coordinates {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "({}, {})", self.file+1, self.rank+1)
+    }
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::{Position, Coordinates, Evaluation, Player};
+
+    #[test]
+    fn test_position_evolution() {
+        let mut position = Position::new();
+
+        position = position.play(Coordinates::new(0, 0));
+
+        assert_eq!(position.get_static_evaluation(), Evaluation::HeuristicScore(-7));
+        assert_eq!(position.active_player, Player::Black);
+
+        position = position.play(Coordinates::new(0, 3));
+        position = position.play(Coordinates::new(3, 0));
+        position = position.play(Coordinates::new(3, 3));
+        position = position.play(Coordinates::new(1, 0));
+        position = position.play(Coordinates::new(2, 0));
+
+        assert_eq!(position.get_static_evaluation(), Evaluation::HeuristicScore(-2));
+        assert_eq!(position.active_player, Player::White);
     }
 }

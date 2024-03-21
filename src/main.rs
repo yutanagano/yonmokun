@@ -9,7 +9,31 @@ use std::io::{self, Write};
 fn main() {
     clear_screen();
     println!("      ////^\\\\\\\\\n      | ^   ^ |\n     @ (o) (o) @\n      |   <   |\n      |  ___  |\n       \\_____/\n     ____|  |____\n    /    \\__/    \\\n   /              \\\n  /\\_/|        |\\_/\\   __   _____  _   _ __  __  ___  _  ___   _ _   _\n / /  |        |  \\ \\  \\ \\ / / _ \\| \\ | |  \\/  |/ _ \\| |/ / | | | \\ | |\n( <   |        |   > )  \\ V / | | |  \\| | |\\/| | | | | ' /| | | |  \\| |\n \\ \\  |        |  / /    | || |_| | |\\  | |  | | |_| | . \\| |_| | |\\  |\n  \\ \\ |________| / /     |_| \\___/|_| \\_|_|  |_|\\___/|_|\\_\\\\___/|_| \\_|\n");
-    println!("やあ、僕の名はよんも君。一緒に三次元四目並べを遊ぼう！");
+    println!("やあ、僕の名はよんも君。一緒に三次元四目並べを遊ぼう！\n");
+
+    let depth: u8;
+    loop {
+        println!("1. 本気モード");
+        println!("2. 優しいモード");
+        print!("遊ぶモードを選んでね。[1,2]: ");
+        io::stdout().flush().unwrap();
+
+        let mut input = String::new();
+        io::stdin().read_line(&mut input).expect("Failed to read line");
+        input = input.trim().to_string();
+
+        match &input[..] {
+            "1" => depth = 6,
+            "2" => depth = 1,
+            _ => {
+                println!("１か２を選んでね。");
+                continue;
+            }
+        }
+
+        break;
+    }
+
 
     let mut current_position = Position::new();
 
@@ -29,7 +53,7 @@ fn main() {
             break;
         };
 
-        let report = evaluation::analyse(&current_position, 6);
+        let report = evaluation::analyse(&current_position, depth);
         current_position = current_position.play(report.best_move);
 
         clear_screen();
@@ -85,7 +109,7 @@ fn get_user_coordinates(position: &Position) -> Coordinates {
                 "3" => file = 2,
                 "4" => file = 3,
                 _ => {
-                    println!("使える数字を打ってね [1-4].");
+                    println!("使える数字を打ってね。[1-4]");
                     continue;
                 }
             }
@@ -107,7 +131,7 @@ fn get_user_coordinates(position: &Position) -> Coordinates {
                 "3" => rank = 2,
                 "4" => rank = 3,
                 _ => {
-                    println!("使える数字を打ってね [1-4].");
+                    println!("使える数字を打ってね。[1-4]");
                     continue;
                 }
             }

@@ -13,21 +13,17 @@ pub fn analyse(position: &Position, depth: u8) -> AnalysisReport {
     let mut best_eval_so_far = Evaluation::Loss;
     let mut best_move_so_far = None;
 
-    for file in 0..4 {
-        for rank in 0..4 {
-            let coordinates = Coordinates::new(file, rank);
+    for coordinates in position.generate_moves() {
+        let new_position = position.play(coordinates);
+        let evaluation = -get_negamax_evaluation(&new_position, depth, &mut num_positions_traversed_including_root, Evaluation::Loss, -best_eval_so_far);
 
-            if !position.can_play(coordinates) {
-                continue
-            };
+        if best_move_so_far.is_none() {
+            best_move_so_far = Some(coordinates);
+        };
 
-            let new_position = position.play(coordinates);
-            let evaluation = -get_negamax_evaluation(&new_position, depth, &mut num_positions_traversed_including_root, Evaluation::Loss, -best_eval_so_far);
-
-            if evaluation > best_eval_so_far {
-                best_eval_so_far = evaluation;
-                best_move_so_far = Some(coordinates);
-            }
+        if evaluation > best_eval_so_far {
+            best_eval_so_far = evaluation;
+            best_move_so_far = Some(coordinates);
         }
     }
 
@@ -54,23 +50,17 @@ fn get_negamax_evaluation(position: &Position, depth: u8, num_positions_traverse
                 return static_evaluation
             };
 
-            for file in 0..4 {
-                for rank in 0..4 {
-                    let coordinates = Coordinates::new(file, rank);
+            for coordinates in position.generate_moves() {
+                let new_position = position.play(coordinates);
+                let evaluation = -get_negamax_evaluation(&new_position, depth-1, num_positions_traversed_so_far, -beta, -alpha);
 
-                    if !position.can_play(coordinates) {continue};
+                if evaluation >= beta {
+                    return evaluation
+                };
 
-                    let new_position = position.play(coordinates);
-                    let evaluation = -get_negamax_evaluation(&new_position, depth-1, num_positions_traversed_so_far, -beta, -alpha);
-
-                    if evaluation >= beta {
-                        return evaluation
-                    };
-
-                    if evaluation >= alpha {
-                        alpha = evaluation
-                    };
-                }
+                if evaluation >= alpha {
+                    alpha = evaluation
+                };
             }
 
             alpha
@@ -84,4 +74,12 @@ pub struct AnalysisReport {
     pub best_move: Coordinates,
     pub search_time: Duration,
     pub num_positions_traversed: u32
+}
+
+
+struct _TranspositionTableEntry {
+    pub position: u128,
+    pub evaluation_upper_bound: Evaluation,
+    pub evaluation_lower_bound: Evaluation,
+    pub search_depth: u8,
 }
